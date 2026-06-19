@@ -28,6 +28,8 @@ async def chat(message: dict):
 
 @router.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    # TODO: Extract tenant_id from JWT token for proper isolation (security gap - MVP uses query param)
+    tenant_id = websocket.query_params.get("tenant_id")
     await websocket.accept()
     try:
         while True:
@@ -39,7 +41,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 from_agent="user",
                 to_agent="planner",
                 msg_type="task",
-                content=msg,
+                content={"tenant_id": tenant_id, **msg},
             )
             result = await harness.process_message(agent_msg, llm_complete_fn=mock_llm)
             await websocket.send_json({"msg_id": result.msg_id, "content": result.content})
