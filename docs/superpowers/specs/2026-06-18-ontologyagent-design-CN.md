@@ -481,51 +481,59 @@ Action Type（原子层）
 └── 由 Skill 调用，或直接由 Agent 调用
 ```
 
-#### Skill 结构（YAML）
+#### Skill 结构（Markdown + YAML Frontmatter）
 
-```yaml
-skill:
-  id: "place_order"
-  name: "下单流程"
-  description: "完成客户下单的完整流程"
-  type: "workflow"  # workflow | query | analysis
+Skill 是 **markdown 文件**，头部包含 YAML frontmatter，用于声明元数据；body 部分是自然语言指令，在 agent 构建时注入到 system prompt。
 
-  # 流程步骤
-  steps:
-    - id: "step_1"
-      name: "验证支付"
-      action_type: "validate_payment"
-      parameters:
-        payment_method: "{{ context.payment_method }}"
-        amount: "{{ context.amount }}"
-      on_failure: "abort"  # abort | skip | retry
+```markdown
+---
+name: place_order
+description: 完成客户下单的完整流程
+type: workflow
+triggers:
+  - intent: "我想下单"
+  - intent: "创建订单"
+---
 
-    - id: "step_2"
-      name: "检查库存"
-      action_type: "check_inventory"
-      parameters:
-        product_id: "{{ context.product_id }}"
-        quantity: "{{ context.quantity }}"
-      on_failure: "abort"
+# Place Order Workflow
 
-    - id: "step_3"
-      name: "创建订单"
-      action_type: "create_order"
-      parameters:
-        customer_id: "{{ context.customer_id }}"
-        product_id: "{{ context.product_id }}"
-        quantity: "{{ context.quantity }}"
-      on_failure: "rollback"  # 回滚之前的步骤
+当用户表达下单意图时，执行以下步骤：
 
-    - id: "step_4"
-      name: "发送通知"
-      action_type: "send_notification"
-      parameters:
-        channel: "wechat"
-        template: "order_created"
-        variables:
-          order_id: "{{ step_3.output.order_id }}"
-      on_failure: "continue"  # 继续执行，不影响主流程
+## Step 1: Validate Payment
+调用 `validate_payment` action，传入：
+- `payment_method`: 支付方式（从 context 获取）
+- `amount`: 订单金额（从 context 获取）
+
+如果验证失败，终止流程并返回错误。
+
+## Step 2: Check Inventory
+调用 `check_inventory` action，传入：
+- `product_id`: 产品 ID
+- `quantity`: 购买数量
+
+如果库存不足，终止流程并返回错误。
+
+## Step 3: Create Order
+调用 `create_order` action，传入：
+- `customer_id`: 客户 ID（从 context 获取）
+- `product_id`: 产品 ID
+- `quantity`: 购买数量
+
+保存返回的 `order_id` 供后续步骤使用。
+
+## Step 4: Send Notification
+调用 `send_notification` action，传入：
+- `channel`: "wechat"
+- `template`: "order_created"
+- `variables.order_id`: 上一步返回的 order_id
+
+即使通知发送失败，订单创建仍视为成功。
+
+## Error Handling
+- 支付验证失败：abort（终止整个流程）
+- 库存不足：abort
+- 订单创建失败：rollback（自动回滚之前的操作）
+- 通知发送失败：continue（不影响主流程）
 ```
 
 #### Skill 执行流程

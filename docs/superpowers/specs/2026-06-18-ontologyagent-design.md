@@ -392,50 +392,59 @@ Action Type (Atomic Layer)
 └── Called by Skill, or directly by Agent
 ```
 
-#### Skill Structure (YAML)
+#### Skill Structure (Markdown + YAML Frontmatter)
 
-```yaml
-skill:
-  id: "place_order"
-  name: "Place Order"
-  description: "Complete customer order workflow"
-  type: "workflow"  # workflow | query | analysis
+A Skill is a **markdown file** with YAML frontmatter for metadata. The body contains natural language instructions that are injected into the system prompt at agent construction time.
 
-  steps:
-    - id: "step_1"
-      name: "Validate Payment"
-      action_type: "validate_payment"
-      parameters:
-        payment_method: "{{ context.payment_method }}"
-        amount: "{{ context.amount }}"
-      on_failure: "abort"  # abort | skip | retry
+```markdown
+---
+name: place_order
+description: Complete customer order workflow
+type: workflow
+triggers:
+  - intent: "I want to place an order"
+  - intent: "Create an order"
+---
 
-    - id: "step_2"
-      name: "Check Inventory"
-      action_type: "check_inventory"
-      parameters:
-        product_id: "{{ context.product_id }}"
-        quantity: "{{ context.quantity }}"
-      on_failure: "abort"
+# Place Order Workflow
 
-    - id: "step_3"
-      name: "Create Order"
-      action_type: "create_order"
-      parameters:
-        customer_id: "{{ context.customer_id }}"
-        product_id: "{{ context.product_id }}"
-        quantity: "{{ context.quantity }}"
-      on_failure: "rollback"  # rollback previous steps
+When the user expresses intent to place an order, execute the following steps:
 
-    - id: "step_4"
-      name: "Send Notification"
-      action_type: "send_notification"
-      parameters:
-        channel: "wechat"
-        template: "order_created"
-        variables:
-          order_id: "{{ step_3.output.order_id }}"
-      on_failure: "continue"  # continue, doesn't affect main flow
+## Step 1: Validate Payment
+Call the `validate_payment` action with:
+- `payment_method`: payment method (from context)
+- `amount`: order amount (from context)
+
+If validation fails, abort the workflow and return an error.
+
+## Step 2: Check Inventory
+Call the `check_inventory` action with:
+- `product_id`: product ID
+- `quantity`: purchase quantity
+
+If inventory is insufficient, abort the workflow and return an error.
+
+## Step 3: Create Order
+Call the `create_order` action with:
+- `customer_id`: customer ID (from context)
+- `product_id`: product ID
+- `quantity`: purchase quantity
+
+Save the returned `order_id` for use in subsequent steps.
+
+## Step 4: Send Notification
+Call the `send_notification` action with:
+- `channel`: "wechat"
+- `template`: "order_created"
+- `variables.order_id`: the order_id from Step 3
+
+If notification fails, continue—the order creation is still considered successful.
+
+## Error Handling
+- Payment validation failure: abort (terminate entire workflow)
+- Inventory insufficient: abort
+- Order creation failure: rollback (automatically rollback previous operations)
+- Notification failure: continue (does not affect main workflow)
 ```
 
 #### Skill Execution Flow
