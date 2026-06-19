@@ -3,7 +3,7 @@ PLANNER_PROMPT = """You are a task planning Agent. Your role is to decompose use
 Current task: {task_description}
 Current context: {context}
 
-Please output a step-by-step execution plan in JSON format:
+IMPORTANT: Only output the JSON plan. Do NOT include any thinking, reasoning, or analysis in your response. Output ONLY valid JSON in this exact format:
 {{"steps": [{{"step_id": 1, "action": "action_name", "params": {{}}}}]}}
 """
 

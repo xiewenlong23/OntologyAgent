@@ -51,6 +51,9 @@ class AgentHarness:
             system_prompt=PLANNER_PROMPT,
             messages=[{"role": "user", "content": user_input}],
         )
+        # Strip thinking tags from LLM response
+        import re
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
         return AgentMessage(
             msg_id=f"{message.msg_id}_plan",
             from_agent="planner",
