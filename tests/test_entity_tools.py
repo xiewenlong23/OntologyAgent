@@ -5,7 +5,6 @@ from ontology_agent.tools.registry import ToolRegistry
 from ontology_agent.ontology.storage import OntologyStorage
 from ontology_agent.ontology.instance import InstanceStorage
 from ontology_agent.ontology.types import ObjectCreate
-from ontology_agent.db.session import AsyncSessionLocal
 
 
 @pytest.fixture(autouse=True)
@@ -17,31 +16,29 @@ def reset_singleton():
 
 
 @pytest.fixture
-async def created_ontology():
+async def created_ontology(db_session):
     """Create a test ontology and return its ID."""
-    async with AsyncSessionLocal() as session:
-        storage = OntologyStorage(session)
-        ont = await storage.create_ontology(
-            tenant_id="test-tenant",
-            name="Test Ontology",
-            description="A test ontology description",
-        )
-        return ont.id
+    storage = OntologyStorage(db_session)
+    ont = await storage.create_ontology(
+        tenant_id="test-tenant",
+        name="Test Ontology",
+        description="A test ontology description",
+    )
+    return ont.id
 
 
 @pytest.fixture
-async def created_object(created_ontology):
+async def created_object(created_ontology, db_session):
     """Create a test object and return its ID."""
-    async with AsyncSessionLocal() as session:
-        storage = InstanceStorage(session)
-        obj_data = ObjectCreate(
-            object_type="product",
-            api_name="Product",
-            display_name="Test Product",
-            properties={"price": 100, "color": "red"},
-        )
-        obj = await storage.create_object("test-tenant", created_ontology, obj_data)
-        return obj.id
+    storage = InstanceStorage(db_session)
+    obj_data = ObjectCreate(
+        object_type="product",
+        api_name="Product",
+        display_name="Test Product",
+        properties={"price": 100, "color": "red"},
+    )
+    obj = await storage.create_object("test-tenant", created_ontology, obj_data)
+    return obj.id
 
 
 @pytest.mark.asyncio

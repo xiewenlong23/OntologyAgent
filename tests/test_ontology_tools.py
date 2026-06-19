@@ -3,7 +3,6 @@ from ontology_agent.tools.ontology_read import OntologyReadTool
 from ontology_agent.tools.ontology_write import OntologyWriteTool
 from ontology_agent.tools.registry import ToolRegistry
 from ontology_agent.ontology.storage import OntologyStorage
-from ontology_agent.db.session import AsyncSessionLocal
 
 
 @pytest.fixture(autouse=True)
@@ -15,16 +14,15 @@ def reset_singleton():
 
 
 @pytest.fixture
-async def created_ontology():
+async def created_ontology(db_session):
     """Create a test ontology and return its ID."""
-    async with AsyncSessionLocal() as session:
-        storage = OntologyStorage(session)
-        ont = await storage.create_ontology(
-            tenant_id="test-tenant",
-            name="Test Ontology",
-            description="A test ontology description",
-        )
-        return ont.id
+    storage = OntologyStorage(db_session)
+    ont = await storage.create_ontology(
+        tenant_id="test-tenant",
+        name="Test Ontology",
+        description="A test ontology description",
+    )
+    return ont.id
 
 
 @pytest.mark.asyncio
