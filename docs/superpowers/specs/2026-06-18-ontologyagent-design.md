@@ -333,6 +333,44 @@ Function is business logic executed in an isolated server-side environment, supp
 }
 ```
 
+### Function vs Skill
+
+| | **Function** | **Skill** |
+|--|-------------|----------|
+| **Layer** | Bottom | Top |
+| **Nature** | Server-side code | Workflow orchestration |
+| **Corresponds to** | Palantir Function | New layer in this spec |
+| **Implementation** | Python code | YAML config |
+| **Purpose** | Execute computation/queries | Combine multiple Action Types |
+
+**Function vs Skill Relationship:**
+```
+Skill (Workflow Orchestration)
+    │
+    ├── step_1: validate_payment (Action Type)
+    │
+    ├── step_2: check_inventory (Action Type)
+    │       │
+    │       └── May call Function (calculate_reorder_point)
+    │
+    ├── step_3: create_order (Action Type)
+    │
+    └── step_4: send_notification (Action Type)
+```
+
+| Scenario | Function | Skill |
+|----------|----------|-------|
+| Calculate reorder point | ✅ `calculate_reorder_point()` | — |
+| Place order workflow | — | ✅ `place_order` |
+| Refund workflow | — | ✅ `refund_order` |
+| Aggregation stats | ✅ `aggregate_sales()` | — |
+
+**Summary:**
+- **Function** = code that does computation/queries
+- **Skill** = workflow that chains multiple operations together
+
+---
+
 ### Skill (Workflow Orchestration)
 
 **Skill is the unit for orchestrating business workflows, combining multiple Action Types to complete a full business process.**
