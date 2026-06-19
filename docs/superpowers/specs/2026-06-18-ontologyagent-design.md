@@ -22,10 +22,11 @@
 │          Multi-Agent Dynamic Collaboration             │
 │          (Point-to-Point Message Passing)              │
 ├─────────────────────────────────────────────────────────┤
-│  Layer 3: Tools & Skills                               │
+│  Layer 3: Tools → Action Types → Skills                │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ Tools: Maintenance Atomics │ Business Operations │   │
-│  │ Skills: Reasoning/Analysis │ Domain Capabilities │   │
+│  │ Tools: Low-level atoms (http_call, db_query)    │   │
+│  │ Action Types: Business atoms (create_order)      │   │
+│  │ Skills: Workflow orchestration (place_order)      │   │
 │  └─────────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────┤
 │  Layer 2: Ontology Layer                               │
@@ -59,6 +60,10 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 | Object Set | **Entity Set** | Collection of objects |
 | Property | **Property** | Attributes of Object Type |
 | Link Type | **Relation** | Relationships between objects |
+| Interface | **Interface** | Abstract type for polymorphism |
+| Action Type | **Action Type** | Atomic transaction that modifies data |
+| Function | **Function** | Server-side logic (Query / Ontology Edit) |
+| — | **Skill** | Workflow orchestration combining Action Types (new in this spec) |
 | Interface | **Interface** | Abstract type for polymorphism |
 | Action Type | **Skill** | Transactional operations |
 | Function | **Skill** | Server-side business logic |
@@ -202,16 +207,32 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 
 ---
 
-## Layer 3: Tools & Skills
+## Layer 3: Tools, Action Types, Functions, and Skills
 
-### Alignment with Palantir Foundry
+### Core Concepts (Based on AgentOS, Arcade Research)
 
-| Palantir Term | Our Term | Description |
-|---------------|----------|-------------|
-| Action Type | **Skill (Business Operation)** | Atomic transactions with side effects |
-| Function | **Skill (Reasoning/Analysis)** | Server-side business logic |
+Based on authoritative research (AgentOS, Arcade, SoK: Agentic Skills), this project uses the following layer structure:
 
-### Tools
+| Layer | Concept | Nature | Example |
+|-------|---------|--------|---------|
+| **Bottom** | **Tool** | Executable function, Agent's "hands" | `http_call`, `db_query`, `file_read` |
+| **Middle** | **Action Type** | Business atomic operation (Palantir-aligned) | `create_order`, `update_inventory` |
+| **Top** | **Skill** | Workflow orchestration, combines multiple Action Types | `place_order_skill` |
+
+**Tool vs Skill (AgentOS definition):**
+
+> **"Skills tell the LLM *when* to do something. Tools are the things the LLM actually invokes."**
+
+| | Tool | Skill |
+|--|------|-------|
+| **Nature** | Executable function | Prompt module / workflow definition |
+| **What LLM sees** | Function name + description + parameter schema | Part of system prompt |
+| **When it runs** | Called during LLM generation | Injected at agent construction |
+| **Purpose** | Execute operations | Teach LLM when/how to use |
+
+### Tool (Low-level Atomic Operations)
+
+Tool is the low-level function that Agent actually calls, with well-defined inputs, outputs, and side effects.
 
 #### Maintenance Atomics (Admin-only in production; MVP no enforcement)
 
@@ -230,71 +251,204 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 | `ontology_write` | Create/update ontology schema |
 | `entity_search` | Query entity data (products, customers, etc.) |
 | `entity_write` | Write/update entity data |
+| `entity_set_query` | Query entity sets |
 | `external_api_call` | Call external retail systems (ERP, WMS, POS) |
 
-### Skills
+### Action Type (Business Atomic Operation, Palantir-aligned)
 
-**Skill structure (JSONB):**
+Action Type is the unit that **modifies data in the Ontology**, corresponding to Palantir's Action Type.
+
+**Action Type characteristics:**
+- **Atomic:** One transaction, rollback on failure
+- **Composable:** One Action can modify multiple Entities' properties
+- **Side Effects:** Can send notifications, trigger Pipelines
+- **Authorization:** Via submission criteria, controls who can execute
+
+```
+Action Type: Assign Employee Role
+    ├── Parameter: User inputs new role (form)
+    ├── Business logic: Modify Employee.role property
+    ├── Auto behavior: Create Relation between Employee ↔ Manager
+    └── Side Effects: Notify old and new Manager
+```
+
+**Action Type structure (JSONB):**
 ```json
 {
-  "id": "product_query",
-  "api_name": "product_query",
-  "display_name": "Product Query",
-  "description": "Query products by category, price range, sales volume",
-  "type": "action",
-  "parameters": {
-    "category": {"type": "string", "required": false},
-    "price_min": {"type": "float", "required": false},
-    "price_max": {"type": "float", "required": false},
-    "limit": {"type": "integer", "required": false, "default": 10}
-  },
+  "api_name": "assign_employee_role",
+  "display_name": "Assign Employee Role",
+  "description": "Assign employee to a new position",
+  "status": "active",
+  "parameters": [
+    { "name": "employee_id", "type": "ref:employee", "required": true },
+    { "name": "new_role", "type": "string", "required": true }
+  ],
   "submission_criteria": {
-    "roles": ["admin", "operator", "viewer"]
+    "roles": ["admin", "hr_manager"]
   },
-  "side_effects": ["log_query", "update_cache"]
+  "side_effects": [
+    { "type": "notification", "template": "role_changed", "recipients": ["employee_id", "manager_id"] }
+  ]
 }
 ```
+
+**Action Type examples:**
+
+| Action Type | Description |
+|------------|-------------|
+| `create_order` | Create order (atomic transaction) |
+| `update_inventory` | Update inventory (atomic transaction) |
+| `assign_employee_role` | Assign employee role |
+| `transfer_product` | Transfer product |
+| `approve_reorder` | Approve reorder request |
+
+### Function (Server-side Logic, Palantir-aligned)
+
+Function is business logic executed in an isolated server-side environment, supporting Python.
+
+**Typical use cases:**
+
+| Scenario | Description |
+|----------|-------------|
+| Derived properties | function-backed column |
+| Aggregation | Entity Set aggregation statistics |
+| Complex queries | Cross-Entity filtering |
+| External queries | Query external systems to enrich Ontology |
+| AI integration | Function calls Language Model |
 
 **Function structure (JSONB):**
 ```json
 {
-  "id": "order_summary",
-  "api_name": "order_summary",
-  "display_name": "Order Summary",
-  "description": "Generate order statistics",
-  "type": "function",
-  "code_language": "python",
-  "code": "def order_summary(tenant_id, date_range): ...",
-  "return_type": "json"
+  "api_name": "calculate_inventory_reorder_point",
+  "display_name": "Calculate Inventory Reorder Point",
+  "description": "Calculate optimal reorder point based on historical sales",
+  "status": "active",
+  "parameters": [
+    { "name": "product_id", "type": "ref:product", "required": true },
+    { "name": "lead_time_days", "type": "int", "required": false }
+  ],
+  "return_type": "float",
+  "language": "python",
+  "code": "def calculate_reorder_point(product_id, lead_time_days=7): ..."
 }
 ```
 
-#### Reasoning/Analysis (Agent self-improvement; MVP not implemented)
+### Skill (Workflow Orchestration)
 
-| Skill | Description |
-|-------|-------------|
-| `code_generate` | Generate Python/SQL code |
-| `data_analyze` | Perform statistical analysis |
-| `report_generate` | Generate structured reports |
+**Skill is the unit for orchestrating business workflows, combining multiple Action Types to complete a full business process.**
 
-#### Domain Capabilities (MVP scope)
+This is a new layer we added to fill the gap that Palantir didn't consider when designing (no Agent Tool/Skill concepts existed).
 
-| Skill | Description |
-|-------|-------------|
-| `product_query` | Query products by category, price range, sales volume |
-| `customer_query` | Query customer information |
-| `order_summary` | Generate order statistics |
-| `inventory_alert` | Alert when inventory falls below threshold |
+#### Skill vs Action Type
 
-**Skill characteristics (Palantir-aligned):**
-- **Atomic:** One transaction, rollback on failure
-- **Composable:** One Skill can modify multiple Entities
-- **Side Effects:** Can send notifications, trigger Pipelines
-- **Authorization:** Via submission_criteria, controls who can execute
+```
+Skill (Orchestration Layer)
+├── Combines multiple Action Types
+├── Defines execution order and flow control
+├── Handles parameter passing and error handling
+└── Can be triggered by user intent or Agent decision
+
+Action Type (Atomic Layer)
+├── Single business atomic operation
+├── Atomic: rollback on failure
+└── Called by Skill, or directly by Agent
+```
+
+#### Skill Structure (YAML)
+
+```yaml
+skill:
+  id: "place_order"
+  name: "Place Order"
+  description: "Complete customer order workflow"
+  type: "workflow"  # workflow | query | analysis
+
+  steps:
+    - id: "step_1"
+      name: "Validate Payment"
+      action_type: "validate_payment"
+      parameters:
+        payment_method: "{{ context.payment_method }}"
+        amount: "{{ context.amount }}"
+      on_failure: "abort"  # abort | skip | retry
+
+    - id: "step_2"
+      name: "Check Inventory"
+      action_type: "check_inventory"
+      parameters:
+        product_id: "{{ context.product_id }}"
+        quantity: "{{ context.quantity }}"
+      on_failure: "abort"
+
+    - id: "step_3"
+      name: "Create Order"
+      action_type: "create_order"
+      parameters:
+        customer_id: "{{ context.customer_id }}"
+        product_id: "{{ context.product_id }}"
+        quantity: "{{ context.quantity }}"
+      on_failure: "rollback"  # rollback previous steps
+
+    - id: "step_4"
+      name: "Send Notification"
+      action_type: "send_notification"
+      parameters:
+        channel: "wechat"
+        template: "order_created"
+        variables:
+          order_id: "{{ step_3.output.order_id }}"
+      on_failure: "continue"  # continue, doesn't affect main flow
+```
+
+#### Skill Execution Flow
+
+```
+User: "I want to order an iPhone"
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  Skill: place_order                  │
+│                                     │
+│  Step 1: validate_payment ──✅────→ │
+│  Step 2: check_inventory ──✅────→ │
+│  Step 3: create_order ────✅────→ │
+│  Step 4: send_notification ──✅──→ │
+└─────────────────────────────────────┘
+         │
+         ▼
+      Return result to user
+```
+
+#### Skill Trigger Methods
+
+| Trigger | Description |
+|---------|-------------|
+| **User Intent** | User says "I want to order", Agent matches `place_order` Skill |
+| **Agent Decision** | Agent determines which Skill to execute based on context |
+| **Scheduled** | CRON trigger, e.g., "Check inventory every day at 2am" |
+
+#### Skill Parameter Passing
+
+```yaml
+# Variable reference syntax
+"{{ context.xxx }}"        # Variable from context
+"{{ step_X.output.yyy }}"  # Output from previous step
+```
+
+#### MVP Skill Examples
+
+| Skill | Description | Action Types Combined |
+|-------|-------------|---------------------|
+| `place_order` | Order workflow | validate_payment → check_inventory → create_order → send_notification |
+| `refund_order` | Refund workflow | validate_refund → process_payment_refund → update_inventory → send_notification |
+| `reorder_check` | Reorder check | check_inventory → calculate_reorder_point → create_purchase_request |
 
 **MVP simplifications:**
 - No skill registration system; skills are hardcoded in v1
 - No skill versioning or hot-reload
+- MVP doesn't implement Side Effects mechanism (v2)
+- MVP doesn't implement Function code editor (v2)
+- MVP doesn't implement Skill nesting and conditional execution (v2)
 
 ---
 
