@@ -25,8 +25,8 @@ class Ontology(Base):
     object_types: Mapped[dict] = mapped_column(JSONB, default=dict)
     properties: Mapped[dict] = mapped_column(JSONB, default=dict)
     link_types: Mapped[dict] = mapped_column(JSONB, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
 class Object(Base):
     __tablename__ = "objects"
@@ -38,8 +38,8 @@ class Object(Base):
     api_name: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     properties: Mapped[dict] = mapped_column(JSONB, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
 class ObjectLink(Base):
     __tablename__ = "object_links"
@@ -49,4 +49,4 @@ class ObjectLink(Base):
     source_object_id: Mapped[str] = mapped_column(String(36), ForeignKey("objects.id"), nullable=False)
     target_object_id: Mapped[str] = mapped_column(String(36), ForeignKey("objects.id"), nullable=False)
     link_type: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
