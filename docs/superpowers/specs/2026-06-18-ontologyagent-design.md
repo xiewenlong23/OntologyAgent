@@ -64,9 +64,6 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 | Action Type | **Action Type** | Atomic transaction that modifies data |
 | Function | **Function** | Server-side logic (Query / Ontology Edit) |
 | — | **Skill** | Workflow orchestration combining Action Types (new in this spec) |
-| Interface | **Interface** | Abstract type for polymorphism |
-| Action Type | **Skill** | Transactional operations |
-| Function | **Skill** | Server-side business logic |
 
 ### Palantir 4 Design Principles
 
@@ -191,7 +188,7 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
   "id": "entity_001",
   "api_name": "iphone_15",
   "display_name": "iPhone 15",
-  "concept": "product",
+  "object_type": "product",
   "properties": {
     "name": "iPhone 15",
     "sku": "PHONE-001",
@@ -340,7 +337,7 @@ Function is business logic executed in an isolated server-side environment, supp
 | **Layer** | Bottom | Top |
 | **Nature** | Server-side code | Workflow orchestration |
 | **Corresponds to** | Palantir Function | New layer in this spec |
-| **Implementation** | Python code | YAML config |
+| **Format** | Python code | Markdown + YAML frontmatter |
 | **Purpose** | Execute computation/queries | Combine multiple Action Types |
 
 **Function vs Skill Relationship:**
@@ -476,11 +473,23 @@ User: "I want to order an iPhone"
 
 #### Skill Parameter Passing
 
-```yaml
-# Variable reference syntax
-"{{ context.xxx }}"        # Variable from context
-"{{ step_X.output.yyy }}"  # Output from previous step
+```markdown
+From context: {{ context.payment_method }}
+From previous step: {{ step_3.output.order_id }}
 ```
+
+#### Skill Storage Location
+
+Skills are stored in the `skills/` directory, one markdown file per Skill:
+
+```
+skills/
+├── place_order.md      # Order workflow
+├── refund_order.md     # Refund workflow
+└── reorder_check.md    # Reorder check
+```
+
+At agent construction time, Skill files are read, frontmatter metadata is parsed, and body content is injected into the system prompt.
 
 #### MVP Skill Examples
 
@@ -533,7 +542,7 @@ User: "I want to order an iPhone"
   "content": {
     "action": "entity_search",
     "params": {
-      "concept": "product",
+      "object_type": "product",
       "filters": { "category": "electronics" },
       "limit": 10
     }
@@ -577,7 +586,7 @@ User: "I want to order an iPhone"
 
 ---
 
-## Layer 5: Rich UI (A2UI Standard)
+### Rich UI (A2UI Standard)
 
 The conversational UI supports rich interactive components rendered from AI responses, using the **A2UI (Agent-to-User Interface)** open standard from Google.
 
@@ -840,7 +849,7 @@ Broadcast messages are delivered to all agents
 User → Main: "查最近7天销量前10商品"
 Main → Planner: task{action: "plan", goal: "查销量前10商品"}
 Planner → Main: result{plan: [step1: search, step2: aggregate, step3: report]}
-Main → Tool:   task{action: "entity_search", concept: "product", filters: ...}
+Main → Tool:   task{action: "entity_search", object_type: "product", filters: ...}
 Tool → Main:   result{products: [...]}
 Main → Reasoner: task{action: "aggregate", data: [...], metric: "sales_volume"}
 Reasoner → Main: result{top10: [...]}
@@ -1355,7 +1364,7 @@ Execute operation
   "component": "tool_agent",
   "event": "tool_execution",
   "tool_name": "entity_search",
-  "params": { "concept": "product", "limit": 10 },
+  "params": { "object_type": "product", "limit": 10 },
   "duration_ms": 45,
   "status": "success",
   "tenant_id": "tenant_001",
