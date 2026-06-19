@@ -24,7 +24,8 @@
         const ws = new WebSocket(`ws://localhost:8000/api/v1/ws/${Date.now()}`);
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            addMessage('agent', data.content?.report || data.content || JSON.stringify(data));
+            let text = data.content?.report || data.content?.plan || data.content?.error || JSON.stringify(data.content);
+            addMessage('agent', text);
         };
         ws.onerror = () => addMessage('system', 'WebSocket error');
         ws.onclose = () => addMessage('system', 'Disconnected');
