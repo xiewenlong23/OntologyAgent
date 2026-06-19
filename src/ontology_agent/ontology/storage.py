@@ -46,3 +46,14 @@ class OntologyStorage:
         await self.session.commit()
         await self.session.refresh(ontology)
         return ontology
+
+    async def update_properties(
+        self, ontology_id: str, tenant_id: str, properties: list[PropertyDefinition]
+    ) -> Ontology | None:
+        ontology = await self.get_ontology(ontology_id, tenant_id)
+        if not ontology:
+            return None
+        ontology.properties = {p.id: p.model_dump() for p in properties}
+        await self.session.commit()
+        await self.session.refresh(ontology)
+        return ontology

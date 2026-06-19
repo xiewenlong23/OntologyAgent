@@ -97,6 +97,69 @@ async def test_ontology_write_tool_adds_object_type(created_ontology):
 
 
 @pytest.mark.asyncio
+async def test_ontology_write_tool_adds_property(created_ontology):
+    tool = OntologyWriteTool()
+    params = {
+        "ontology_id": created_ontology,
+        "action": "add_property",
+        "data": {
+            "id": "name",
+            "api_name": "name",
+            "display_name": "Name",
+            "type": "string",
+            "description": "The name property",
+        },
+    }
+    context = {"tenant_id": "test-tenant"}
+
+    result = await tool.execute(params, context)
+
+    assert result.success is True
+    assert result.data["updated"] is True
+
+
+@pytest.mark.asyncio
+async def test_ontology_write_tool_requires_ontology_id_for_add_property():
+    tool = OntologyWriteTool()
+    params = {
+        "action": "add_property",
+        "data": {
+            "id": "name",
+            "api_name": "name",
+            "display_name": "Name",
+            "type": "string",
+        },
+    }
+    context = {"tenant_id": "test-tenant"}
+
+    result = await tool.execute(params, context)
+
+    assert result.success is False
+    assert "ontology_id required" in result.error
+
+
+@pytest.mark.asyncio
+async def test_ontology_write_tool_add_property_not_found():
+    tool = OntologyWriteTool()
+    params = {
+        "ontology_id": "nonexistent-id",
+        "action": "add_property",
+        "data": {
+            "id": "name",
+            "api_name": "name",
+            "display_name": "Name",
+            "type": "string",
+        },
+    }
+    context = {"tenant_id": "test-tenant"}
+
+    result = await tool.execute(params, context)
+
+    assert result.success is False
+    assert "Ontology not found" in result.error
+
+
+@pytest.mark.asyncio
 async def test_ontology_write_tool_requires_ontology_id_for_add_object_type():
     tool = OntologyWriteTool()
     params = {

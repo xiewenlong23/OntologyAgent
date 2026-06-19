@@ -53,4 +53,16 @@ class OntologyWriteTool(Tool):
 
                 return ToolResult(success=True, data={"updated": True}, execution_time_ms=int((time.time() - start) * 1000))
 
+            elif action == "add_property":
+                ontology_id = params.get("ontology_id")
+                if not ontology_id:
+                    return ToolResult(success=False, error="ontology_id required", execution_time_ms=int((time.time() - start) * 1000))
+
+                property_def = PropertyDefinition(**data)
+                updated = await storage.update_properties(ontology_id, tenant_id, [property_def])
+                if not updated:
+                    return ToolResult(success=False, error="Ontology not found", execution_time_ms=int((time.time() - start) * 1000))
+
+                return ToolResult(success=True, data={"updated": True}, execution_time_ms=int((time.time() - start) * 1000))
+
             return ToolResult(success=False, error=f"Unknown action: {action}", execution_time_ms=int((time.time() - start) * 1000))
