@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palantir Foundry Ontology 文档库</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --sidebar-bg: #161922;
+    --card-bg: #1e2230;
+    --card-hover: #252a3d;
+    --border: #2a2f45;
+    --text: #e2e4ed;
+    --text-muted: #7c82a0;
+    --accent: #5b8def;
+    --accent-dim: #3a5a9e;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header { background: var(--sidebar-bg); border-bottom: 1px solid var(--border); padding: 20px 32px; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
+  header h1 .logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: #fff; }
+  header .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  header .stats { display: flex; gap: 24px; margin-top: 12px; }
+  header .stat { font-size: 13px; color: var(--text-muted); }
+  header .stat strong { color: var(--accent); font-weight: 600; }
+
+  /* Search */
+  .search-bar { padding: 16px 32px; background: var(--sidebar-bg); border-bottom: 1px solid var(--border); }
+  .search-bar input {
+    width: 100%; max-width: 600px; padding: 10px 16px 10px 40px;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-size: 14px; outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237c82a0' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 12px center;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+
+  /* Main layout */
+  .container { display: flex; min-height: calc(100vh - 140px); }
+  .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 16px 0; overflow-y: auto; position: sticky; top: 130px; height: calc(100vh - 130px); }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .sidebar-section { padding: 0 12px; margin-bottom: 8px; }
+  .sidebar-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); padding: 8px 12px 4px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+  .sidebar-section-title:hover { color: var(--accent); }
+  .sidebar-section-title .count { background: var(--card-bg); padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .sidebar-item { display: block; padding: 5px 12px 5px 20px; font-size: 13px; color: var(--text-muted); text-decoration: none; border-radius: 6px; margin: 1px 4px; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-item:hover { background: var(--card-bg); color: var(--text); }
+  .sidebar-item.active { background: var(--accent-dim); color: #fff; }
+
+  /* Content */
+  .content { flex: 1; padding: 24px 32px; overflow: hidden; }
+  .content h2.section-header { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .content h2.section-header .badge { font-size: 12px; background: var(--accent-dim); color: var(--accent); padding: 2px 10px; border-radius: 20px; font-weight: 600; }
+
+  /* Cards grid */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; text-decoration: none; color: var(--text);
+    transition: all 0.2s; display: block; position: relative; overflow: hidden;
+  }
+  .card:hover { background: var(--card-hover); border-color: var(--accent-dim); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); opacity: 0; transition: opacity 0.2s; }
+  .card:hover::before { opacity: 1; }
+  .card-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; display: flex; align-items: flex-start; gap: 8px; }
+  .card-title .icon { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; margin-top: 1px; }
+  .card-section { font-size: 11px; color: var(--accent); margin-bottom: 6px; font-weight: 600; }
+  .card-excerpt { font-size: 12px; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--accent); font-weight: 600; }
+  .card-link::after { content: '→'; }
+
+  /* Chapter separator */
+  .chapter { margin: 32px 0 16px; padding-top: 24px; border-top: 1px solid var(--border); }
+  .chapter h3 { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .chapter h3 .line { flex: 1; height: 1px; background: var(--border); }
+
+  /* Category colors */
+  .cat-overview { --cat-color: #5b8def; }
+  .cat-types { --cat-color: #a78bfa; }
+  .cat-actions { --cat-color: #f472b6; }
+  .cat-functions { --cat-color: #34d399; }
+  .cat-interfaces { --cat-color: #fbbf24; }
+  .cat-apps { --cat-color: #fb923c; }
+  .cat-search { --cat-color: #22d3ee; }
+  .cat-scheduling { --cat-color: #4ade80; }
+  .cat-map { --cat-color: #818cf8; }
+  .cat-other { --cat-color: #94a3b8; }
+
+  .icon { background: color-mix(in srgb, var(--cat-color) 20%, transparent); color: var(--cat-color); }
+
+  /* Empty state */
+  .no-results { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .no-results .emoji { font-size: 48px; margin-bottom: 16px; }
+  .no-results h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+
+  /* TOC breadcrumb */
+  .breadcrumb { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  /* Footer */
+  footer { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .container { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    .content { padding: 16px; }
+    .cards { grid-template-columns: 1fr; }
+  }
+
+  /* Search highlight */
+  .highlight { background: rgba(91, 141, 239, 0.3); color: #fff; border-radius: 2px; padding: 0 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <div class="logo">P</div>
+    Palantir Foundry Ontology 文档库
+  </h1>
+  <div class="subtitle">门店本体论（Store Ontology）参考架构 — 源自 Palantir Foundry 官方文档</div>
+  <div class="stats">
+    <span class="stat"><strong>375</strong> 个页面</span>
+    <span class="stat"><strong>68</strong> 个章节</span>
+    <span class="stat"><strong>3.2 MB</strong> 本地文档</span>
+    <span class="stat"><a href="https://www.palantir.com/docs/foundry/ontology/overview/" target="_blank" style="color: var(--accent);">🌐 原文链接</a></span>
+  </div>
+</header>
+
+<div class="search-bar">
+  <input type="text" id="search" placeholder="搜索文档标题或内容...（Ctrl+F）" autofocus>
+</div>
+
+<div class="container">
+  <!-- Sidebar TOC -->
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <!-- Main content -->
+  <main class="content" id="main">
+    <div class="breadcrumb"><a href="javascript:void(0)" onclick="showAll()">全部章节</a></div>
+    <div id="content-area"></div>
+  </main>
+</div>
+
+<footer>
+  数据来源：Palantir Foundry 官方文档 &nbsp;|&nbsp; 本地缓存，非官方镜像 &nbsp;|&nbsp; 2026-06-18 抓取
+</footer>
+
+<script>
+// ============ 文档数据结构 ============
+const SECTIONS = [
+  { id: "overview", name: "📘 Overview 概述", cat: "overview", items: [
+    { title: "Overview", file: "Overview/overview.md", excerpt: "Ontology 是组织的操作层，连接数字资产与现实世界实体，构建数字化孪生。" },
+    { title: "Why create an Ontology?", file: "Overview/why-ontology.md", excerpt: "为什么创建 Ontology：数据孤岛 → 统一语义层 → 跨应用复用。" },
+    { title: "Models in the Ontology", file: "Overview/models.md", excerpt: "Ontology 中的模型：ML模型作为 Ontology 公民，可查询、可调用。" },
+    { title: "Core concepts", file: "Overview/core-concepts.md", excerpt: "核心概念：Object、Property、Link、Action、Function 的定义与关系。" },
+    { title: "Ontology-aware applications", file: "Overview/applications.md", excerpt: "Ontology 感知应用：Workshop、Slate、Quiver 等构建应用的框架。" },
+  ]},
+  { id: "object-types", name: "🏷️ Object & Link Types 对象与链接", cat: "types", items: [
+    { title: "Types reference", file: "Object and link types/type-reference.md", excerpt: "类型参考：Object Type、Link Type、Value Type 的完整类型系统。" },
+    { title: "Object types overview", file: "Object types/object-types-overview.md", excerpt: "对象类型：定义现实世界实体或事件的 Schema，对应数据集的行。" },
+    { title: "Create an object type", file: "Object types/create-object-type.md", excerpt: "创建对象类型：定义实体属性、添加数据源、配置安全策略。" },
+    { title: "Properties overview", file: "Properties/properties-overview.md", excerpt: "属性：对象类型的特征，支持多种数据类型和格式配置。" },
+    { title: "Base types", file: "Properties/base-types.md", excerpt: "基础类型：String、Number、Boolean、Date、Timestamp 等内置类型。" },
+    { title: "Link types overview", file: "Link types/link-types-overview.md", excerpt: "链接类型：定义两个对象类型之间的关系，类似数据集 JOIN。" },
+    { title: "Value types overview", file: "Value types/value-types-overview.md", excerpt: "值类型：可复用的结构化类型，跨对象类型共享。" },
+    { title: "Structs overview", file: "Structs/structs-overview.md", excerpt: "结构体：组合多个字段的复合类型，类似编程语言的 struct。" },
+    { title: "Shared properties", file: "Shared properties/shared-property-overview.md", excerpt: "共享属性：跨多个对象类型复用的属性定义。" },
+  ]},
+  { id: "actions", name: "⚡ Action Types 操作类型", cat: "actions", items: [
+    { title: "Action types overview", file: "Action types/overview.md", excerpt: "Action：允许用户在 Ontology 中触发操作，捕获数据或触发业务流程。" },
+    { title: "Getting started", file: "Action types/getting-started.md", excerpt: "快速上手：创建 Action Type、定义参数、配置表单布局。" },
+    { title: "Function-backed actions", file: "Function-backed actions/overview.md", excerpt: "Function-backed Action：调用后台函数执行业务逻辑的 Action。" },
+    { title: "Side effects overview", file: "Side effects/overview.md", excerpt: "副作用：Action 触发后可发送通知、调用 Webhook 等。" },
+    { title: "Notifications", file: "Side effects/notifications.md", excerpt: "通知：Action 执行后发送邮件、站内信、Slack 等通知。" },
+    { title: "Webhooks", file: "Side effects/webhooks.md", excerpt: "Webhook：触发外部系统 HTTP 调用，实现系统集成。" },
+    { title: "Permissions", file: "Action types/permissions.md", excerpt: "权限控制：谁可以触发 Action，粒度到行级安全。" },
+    { title: "Action log", file: "Action types/action-log.md", excerpt: "操作日志：记录所有 Action 执行历史，支持审计追溯。" },
+  ]},
+  { id: "functions", name: "🔧 Functions 函数", cat: "functions", items: [
+    { title: "Functions overview", file: "Functions/overview.md", excerpt: "Function：在 Ontology 上执行业务逻辑，可返回数据或修改对象。" },
+    { title: "TypeScript v2 getting started", file: "TypeScript v2/typescript-v2-getting-started.md", excerpt: "TypeScript v2：新一代函数开发，体验更好的类型安全。" },
+    { title: "Python getting started", file: "Python/python-getting-started.md", excerpt: "Python Functions：使用 Python 编写 Ontology 函数。" },
+    { title: "Language feature support", file: "Functions/language-feature-support.md", excerpt: "各语言功能对比：TypeScript v2、TypeScript v1、Python。" },
+    { title: "Functions on objects", file: "Functions/functions-on-objects.md", excerpt: "Object 函数：绑定到对象类型，接收对象实例作为输入。" },
+    { title: "Ontology edits overview", file: "Language agnostic features/edits-overview.md", excerpt: "Ontology 编辑：通过函数修改对象属性和链接关系。" },
+    { title: "Unit testing", file: "Unit testing/unit-test-getting-started.md", excerpt: "单元测试：测试 Functions 的正确性，支持 Mock 对象。" },
+  ]},
+  { id: "interfaces", name: "🔗 Interfaces 接口", cat: "interfaces", items: [
+    { title: "Interface overview", file: "Interfaces/interface-overview.md", excerpt: "Interface：定义对象类型的【形状】，支持多态和继承。" },
+    { title: "Create an interface", file: "Interfaces/create-interface.md", excerpt: "创建接口：定义通用属性和链接，实现类型抽象。" },
+    { title: "Implement an interface", file: "Interfaces/implement-interface.md", excerpt: "实现接口：让对象类型支持某个接口。" },
+  ]},
+  { id: "semantic-search", name: "🔍 Semantic Search 语义搜索", cat: "search", items: [
+    { title: "Semantic search overview", file: "Semantic search/overview-semantic-search.md", excerpt: "语义搜索：基于向量嵌入的自然语言搜索，支持文档问答。" },
+    { title: "Document processing", file: "Semantic search/document-processing.md", excerpt: "文档处理：PDF、Word、PPT 等文档的向量化流程。" },
+    { title: "Ontology augmented generation", file: "Semantic search/ontology-augmented-generation.md", excerpt: "OAG：结合 Ontology 知识的 RAG，增强生成质量。" },
+    { title: "Search syntax", file: "Ontology search/search-syntax.md", excerpt: "搜索语法：精确匹配、模糊匹配、属性过滤等搜索技巧。" },
+  ]},
+  { id: "object-explorer", name: "🗂️ Object Explorer 对象浏览", cat: "apps", items: [
+    { title: "Object Explorer overview", file: "Object Explorer/overview.md", excerpt: "对象浏览：搜索、筛选、可视化 Ontology 中的对象集合。" },
+    { title: "Search and explore objects", file: "Search and explore objects/search-objects.md", excerpt: "搜索对象：全文搜索 + 属性过滤 + SQL 分析。" },
+    { title: "Analyze and compare", file: "Analyze and compare/filter-results.md", excerpt: "分析和比较：图表可视化、对象集合对比、数据透视。" },
+    { title: "Object Views", file: "Object Views/overview.md", excerpt: "对象视图：配置对象详情页的展示布局和字段。" },
+  ]},
+  { id: "scheduling", name: "📅 Dynamic Scheduling 动态排班", cat: "scheduling", items: [
+    { title: "Scheduling overview", file: "Dynamic Scheduling/scheduling-overview.md", excerpt: "动态排班：甘特图视图、拖拽排程、冲突检测。" },
+    { title: "Core concepts", file: "Dynamic Scheduling/scheduling-concepts.md", excerpt: "核心概念：Schedule、Resource、Layer、Assignment 的模型。" },
+    { title: "Suggestion Functions", file: "Dynamic Scheduling/scheduling-suggestion-functions.md", excerpt: "Suggestion Function：AI 驱动的排班建议引擎。" },
+    { title: "Validation rules", file: "Dynamic Scheduling/scheduling-validation-rules.md", excerpt: "验证规则：约束排班合法性（时间冲突、技能匹配等）。" },
+  ]},
+  { id: "map", name: "🗺️ Map 地图", cat: "map", items: [
+    { title: "Map overview", file: "Map/overview.md", excerpt: "地图：Ontology 对象在地理空间上的可视化。" },
+    { title: "Interact with maps", file: "Interact with maps/map-overview.md", excerpt: "地图交互：选择、标注、图层管理、时间轴。" },
+    { title: "Visualize Ontology data", file: "Visualize Ontology data/visualize-objects.md", excerpt: "空间可视化：点、线、面、热力图、轨迹。" },
+  ]},
+  { id: "vertex", name: "🔮 Vertex 图分析", cat: "other", items: [
+    { title: "Vertex overview", file: "Vertex/overview.md", excerpt: "Vertex：图数据库 + 时序事件 + 场景模拟。" },
+    { title: "Graphs", file: "Graphs/graphs-explore.md", excerpt: "图探索：实体关系可视化，发现隐藏关联。" },
+    { title: "Events and time series", file: "Events and time series/events-overview.md", excerpt: "事件和时序：对象行为事件的时间线分析。" },
+  ]},
+  { id: "machinery", name: "⚙️ Machinery 流程挖掘", cat: "other", items: [
+    { title: "Machinery overview", file: "Machinery/overview.md", excerpt: "流程挖掘：从日志中还原业务流程，发现瓶颈。" },
+    { title: "Process mining", file: "Machinery/process-mining.md", excerpt: "过程挖掘：分析事件日志，重建实际业务流程。" },
+  ]},
+  { id: "foundry-rules", name: "📜 Foundry Rules 规则引擎", cat: "other", items: [
+    { title: "Foundry Rules overview", file: "Foundry Rules/overview.md", excerpt: "规则引擎：条件触发 Actions，支持复杂业务规则。" },
+    { title: "Core concepts", file: "Core concepts/overview.md", excerpt: "Monitor、Condition、Action 的规则模型。" },
+    { title: "Deploy", file: "Deploy/overview.md", excerpt: "规则部署：编写、测试、部署、上线的完整流程。" },
+  ]},
+  { id: "ontologies", name: "🌐 Ontologies 本体管理", cat: "other", items: [
+    { title: "Ontologies overview", file: "Ontologies/ontologies-overview.md", excerpt: "Ontology 管理：分支、合并、评审的协作工作流。" },
+    { title: "Branching the ontology", file: "Branching the ontology/branching-ontology.md", excerpt: "分支开发：像 Git 一样管理 Ontology 变更。" },
+    { title: "Export, edit, and import", file: "Ontology Manager/export-import.md", excerpt: "导出/导入：备份、编辑、批量修改 Ontology。" },
+    { title: "Change management", file: "Change management/save-changes.md", excerpt: "变更管理：保存、评审、回滚 Ontology 变更。" },
+  ]},
+  { id: "permissioning", name: "🔒 Object Permissioning 权限", cat: "other", items: [
+    { title: "Ontology permissions overview", file: "Object permissioning/overview.md", excerpt: "权限模型：行级安全、列级安全、对象级权限。" },
+    { title: "Managing object security", file: "Object permissioning/managing-object-security.md", excerpt: "管理对象安全：配置安全策略、权限继承、例外规则。" },
+    { title: "Object security policies", file: "Object permissioning/object-security-policies.md", excerpt: "安全策略：基于属性、链接、时间的动态权限。" },
+  ]},
+  { id: "indexing", name: "📊 Indexing & Edits 索引与编辑", cat: "other", items: [
+    { title: "Indexing overview", file: "Indexing/overview.md", excerpt: "数据索引：Pipeline 将数据集同步到 Ontology 对象。" },
+    { title: "Object edits overview", file: "Object edits and materializations/overview.md", excerpt: "对象编辑：用户如何修改 Ontology 对象数据。" },
+    { title: "Materializations", file: "Object edits and materializations/materializations.md", excerpt: "物化视图：将查询结果写回数据集。" },
+  ]},
+];
+
+// ============ 构建侧边栏 ============
+function buildSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  let html = '';
+  for (const section of SECTIONS) {
+    const count = section.items.length;
+    html += `
+      <div class="sidebar-section">
+        <div class="sidebar-section-title" onclick="toggleSection('${section.id}')">
+          <span>${section.name}</span>
+          <span class="count">${count}</span>
+        </div>
+        <div id="sidebar-${section.id}" style="display:none">
+          ${section.items.map(item => `
+            <a class="sidebar-item" href="javascript:void(0)" onclick="showSection('${section.id}')" title="${item.title}">
+              ${item.title}
+            </a>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+  sidebar.innerHTML = html;
+}
+
+function toggleSection(id) {
+  const el = document.getElementById('sidebar-' + id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ============ 渲染内容 ============
+function renderSection(section) {
+  const catClass = 'cat-' + section.cat;
+  return `
+    <div class="cards">
+      ${section.items.map(item => `
+        <a class="card ${catClass}" href="${item.file}" target="_blank">
+          <div class="card-section">${section.name.split(' ').slice(1).join(' ')}</div>
+          <div class="card-title">
+            <span class="icon">${item.title.charAt(0)}</span>
+            ${item.title}
+          </div>
+          <div class="card-excerpt">${item.excerpt}</div>
+          <span class="card-link">打开文档</span>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+function showSection(id) {
+  const section = SECTIONS.find(s => s.id === id);
+  if (!section) return;
+  document.getElementById('content-area').innerHTML = `
+    <h2 class="section-header">
+      ${section.name}
+      <span class="badge">${section.items.length} 篇</span>
+    </h2>
+    ${renderSection(section)}
+  `;
+  document.querySelector('.breadcrumb').innerHTML = `
+    <a href="javascript:void(0)" onclick="showAll()">全部章节</a> &gt; ${section.name}
+  `;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showAll() {
+  let html = '<div id="all-content">';
+  for (const section of SECTIONS) {
+    html += `
+      <div class="chapter" id="chapter-${section.id}">
+        <h3>${section.name} <span class="line"></span></h3>
+        ${renderSection(section)}
+      </div>
+    `;
+  }
+  html += '</div>';
+  document.getElementById('content-area').innerHTML = html;
+  document.querySelector('.breadcrumb').innerHTML = '<a href="javascript:void(0)" onclick="showAll()">全部章节</a>';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============ 搜索 ============
+document.getElementById('search').addEventListener('input', function(e) {
+  const q = e.target.value.trim().toLowerCase();
+  const contentArea = document.getElementById('content-area');
+
+  if (!q) {
+    showAll();
+    return;
+  }
+
+  // 搜索标题和摘要
+  const results = [];
+  for (const section of SECTIONS) {
+    for (const item of section.items) {
+      if (item.title.toLowerCase().includes(q) || item.excerpt.toLowerCase().includes(q)) {
+        results.push({ ...item, section });
+      }
+    }
+  }
+
+  if (results.length === 0) {
+    contentArea.innerHTML = `
+      <div class="no-results">
+        <div class="emoji">🔍</div>
+        <h3>未找到匹配结果</h3>
+        <p>尝试其他关键词，如 "action"、"function"、"object"、"排班"、"权限"</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <h2 class="section-header">
+      🔍 搜索结果
+      <span class="badge">${results.length} 个匹配</span>
+    </h2>
+    <div style="margin-bottom:16px; color:var(--text-muted); font-size:13px;">
+      关键词：<strong style="color:var(--accent)">${q}</strong>
+    </div>
+    <div class="cards">
+  `;
+  for (const r of results) {
+    const catClass = 'cat-' + r.section.cat;
+    const title = r.title.replace(new RegExp(`(${q})`, 'gi'), '<span class="highlight">$1</span>');
+    html += `
+      <a class="card ${catClass}" href="${r.file}" target="_blank">
+        <div class="card-section">${r.section.name.split(' ').slice(1).join(' ')}</div>
+        <div class="card-title">${title}</div>
+        <div class="card-excerpt">${r.excerpt}</div>
+        <span class="card-link">打开文档</span>
+      </a>
+    `;
+  }
+  html += '</div>';
+  contentArea.innerHTML = html;
+  document.querySelector('.breadcrumb').innerHTML = `
+    <a href="javascript:void(0)" onclick="showAll()">全部章节</a> &gt; 搜索: ${q}
+  `;
+});
+
+// ============ 初始化 ============
+buildSidebar();
+showAll();
+</script>
+</body>
+</html>

@@ -55,11 +55,11 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 
 | Palantir Term | Our Term | Description |
 |---------------|----------|-------------|
-| Object Type | **Concept** | Schema definition (type) |
-| Object | **Entity** | Single instance |
-| Object Set | **Entity Set** | Collection of objects |
+| Object Type | **Object Type** | Schema definition (type) |
+| Object | **Object** | Single instance |
+| Object Set | **Object Set** | Collection of objects |
 | Property | **Property** | Attributes of Object Type |
-| Link Type | **Relation** | Relationships between objects |
+| Link Type | **Link Type** | Link Typeships between objects |
 | Interface | **Interface** | Abstract type for polymorphism |
 | Action Type | **Action Type** | Atomic transaction that modifies data |
 | Function | **Function** | Server-side logic (Query / Ontology Edit) |
@@ -118,7 +118,7 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 | `visibility` | `prominent` / `normal` / `hidden` |
 | `description` | Business meaning |
 
-**Concept structure (JSONB):**
+**Object Type structure (JSONB):**
 ```json
 {
   "id": "product",
@@ -143,7 +143,7 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 }
 ```
 
-**Relation structure (JSONB):**
+**Link Type structure (JSONB):**
 ```json
 {
   "id": "sold_by",
@@ -185,7 +185,7 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 - `entity_properties`: entity_id, property_id, value (JSONB)
 - `entity_relations`: entity_id, relation_id, target_entity_id
 
-**Entity structure (JSONB):**
+**Object structure (JSONB):**
 ```json
 {
   "id": "entity_001",
@@ -209,11 +209,11 @@ The Ontology Layer aligns with Palantir Foundry's methodology:
 
 ## Layer 3: Tools, Action Types, Functions, and Skills
 
-### Core Concepts (Based on AgentOS, Arcade Research)
+### Core Object Types (Based on AgentOS, Arcade Research)
 
 Based on authoritative research (AgentOS, Arcade, SoK: Agentic Skills), this project uses the following layer structure:
 
-| Layer | Concept | Nature | Example |
+| Layer | Object Type | Nature | Example |
 |-------|---------|--------|---------|
 | **Bottom** | **Tool** | Executable function, Agent's "hands" | `http_call`, `db_query`, `file_read` |
 | **Middle** | **Action Type** | Business atomic operation (Palantir-aligned) | `create_order`, `update_inventory` |
@@ -268,7 +268,7 @@ Action Type is the unit that **modifies data in the Ontology**, corresponding to
 Action Type: Assign Employee Role
     ├── Parameter: User inputs new role (form)
     ├── Business logic: Modify Employee.role property
-    ├── Auto behavior: Create Relation between Employee ↔ Manager
+    ├── Auto behavior: Create Link Type between Employee ↔ Manager
     └── Side Effects: Notify old and new Manager
 ```
 
@@ -311,8 +311,8 @@ Function is business logic executed in an isolated server-side environment, supp
 | Scenario | Description |
 |----------|-------------|
 | Derived properties | function-backed column |
-| Aggregation | Entity Set aggregation statistics |
-| Complex queries | Cross-Entity filtering |
+| Aggregation | Object Set aggregation statistics |
+| Complex queries | Cross-Object filtering |
 | External queries | Query external systems to enrich Ontology |
 | AI integration | Function calls Language Model |
 
@@ -1070,7 +1070,7 @@ report_generate:   30s
 | Data Type | Technology | Notes |
 |-----------|------------|-------|
 | Semantic Data (Schema) | PostgreSQL + JSONB | Flexible schema storage |
-| Instance Data | PostgreSQL | Relational storage, join queries |
+| Instance Data | PostgreSQL | Link Typeal storage, join queries |
 | Agent Messages | In-memory | Lost on restart |
 | User Sessions | In-memory | Lost on restart |
 | Scheduled Jobs | PostgreSQL | Persisted CRON jobs |
@@ -1231,9 +1231,9 @@ User C (admin): can view all regions
 **Link-Level Permissions:**
 
 ```
-User A: can view Relations they created
-User B: can view Relations assigned to them
-Admin: can view all Relations
+User A: can view Link Types they created
+User B: can view Link Types assigned to them
+Admin: can view all Link Types
 ```
 
 **Implementation:** Data permissions are injected as filters at the `entity_search` Tool level, automatically带上用户所属 region/department 等属性限制.
