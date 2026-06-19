@@ -4,8 +4,9 @@ from functools import lru_cache
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ontology"
     llm_provider: str = "minimax"
+    llm_base_url: str = "https://api.minimax.io/v1"
     llm_api_key: str = ""
-    llm_model: str = "minimax-01"
+    llm_model: str = "MiniMax-M3"
     deep_agent_enabled: bool = True
     a2ui_renderer_url: str = "http://localhost:5173"
     ws_max_connections: int = 1000

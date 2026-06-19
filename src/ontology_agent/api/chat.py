@@ -23,8 +23,13 @@ async def get_llm_complete_fn():
     async def real_llm(**k):
         prompt = k.get("prompt", "")
         system = k.get("system", "")
+        messages = k.get("messages")
+        system_prompt = k.get("system_prompt") or system
+        logger.info(f"real_llm called: prompt={prompt}, system_prompt={system_prompt[:50] if system_prompt else None}, messages={messages}")
         try:
-            return await llm_client.complete(prompt, system)
+            result = await llm_client.complete(prompt=prompt, system=system, messages=messages, system_prompt=system_prompt)
+            logger.info(f"LLM result: {result[:100]}...")
+            return result
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             return f"LLM error: {str(e)}"

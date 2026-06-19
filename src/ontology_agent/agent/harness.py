@@ -45,10 +45,11 @@ class AgentHarness:
             )
 
     async def _handle_planner(self, message: AgentMessage, llm_complete_fn) -> AgentMessage:
-        # Use LLM to decompose task
+        # Extract user message - frontend sends "message", REST API sends "task"
+        user_input = message.content.get("task") or message.content.get("message", "")
         response = await llm_complete_fn(
             system_prompt=PLANNER_PROMPT,
-            messages=[{"role": "user", "content": message.content.get("task", "")}],
+            messages=[{"role": "user", "content": user_input}],
         )
         return AgentMessage(
             msg_id=f"{message.msg_id}_plan",
