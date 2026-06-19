@@ -8,6 +8,10 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 harness = AgentHarness()
 
 
+async def mock_llm(**k):
+    return "Mock LLM response"
+
+
 @router.post("/chat")
 async def chat(message: dict):
     msg_id = str(uuid.uuid4())
@@ -18,7 +22,7 @@ async def chat(message: dict):
         msg_type="task",
         content=message,
     )
-    result = await harness.process_message(agent_msg, llm_complete_fn=lambda **k: "Mock LLM response")
+    result = await harness.process_message(agent_msg, llm_complete_fn=mock_llm)
     return {"msg_id": result.msg_id, "content": result.content}
 
 
@@ -37,7 +41,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 msg_type="task",
                 content=msg,
             )
-            result = await harness.process_message(agent_msg, llm_complete_fn=lambda **k: "Mock LLM")
+            result = await harness.process_message(agent_msg, llm_complete_fn=mock_llm)
             await websocket.send_json({"msg_id": result.msg_id, "content": result.content})
     except WebSocketDisconnect:
         pass
