@@ -1213,17 +1213,19 @@ report_generate:    30s
 - 多 Agent 协作（4 个固定角色）
 - 带基础任务执行的对话语 UI
 - 业务 Tools：ontology_read/write、entity_search/write
-- 业务 Skills：product_query、customer_query、order_summary、inventory_alert
+- 业务 Action Types：create_order、update_inventory、product_query、customer_query
+- 业务 Functions：order_summary、calculate_reorder_point
+- 业务 Skills：place_order、refund_order、reorder_check
 - 多租户隔离（数据层 tenant_id）
 - 通过对话配置定时任务
 
 **未来版本范围外：**
-- Skill 注册系统（v1 为硬编码）
+- Action Type / Function / Skill 注册系统（v1 为硬编码）
 - 动态子 Agent 产生
 - 跨会话持久化 Agent 记忆
-- Skill 版本管理
+- Action Type / Function / Skill 版本管理
 - Ontology Schema 版本管理
-- 细粒度 Tool/Skill 权限控制
+- 细粒度 Tool/Action Type/Skill 权限控制
 - 邮件/通知集成
 - 对话 UI 文件上传
 - 图数据库后端（需要时再引入）
@@ -1266,7 +1268,9 @@ report_generate:    30s
 **DeepAgent 未涵盖的自研部分（需要自己实现）：**
 - Ontology 存储层（PostgreSQL schema + instance）
 - 业务 Tools（`ontology_read/write`、`entity_search/write`）
-- 业务 Skills（`product_query`、`inventory_alert` 等业务能力）
+- 业务 Action Types（`create_order`、`update_inventory`）
+- 业务 Functions（`order_summary`、`calculate_reorder_point`）
+- 业务 Skills（`place_order`、`refund_order`）
 - A2UI 组件映射（`table`、`card`、`chart` → A2UI Lit components）
 
 ---
@@ -1366,16 +1370,18 @@ report_generate:    30s
 
 **实现方式：** 数据权限在 `entity_search` Tool 层面注入 filter，自动带上用户所属区域/部门等属性限制。
 
-### Tool/Skill 权限映射
+### Tool / Action Type / Function / Skill 权限映射
 
-| Tool/Skill 类别 | 资源层级 | 可用角色 | 说明 |
-|----------------|---------|---------|------|
-| `entity_search`、`link_search` | Objects & Links | `admin`、`operator`、`viewer` | 查询类，权限宽松 |
-| `entity_write`、`link_write` | Objects & Links | `admin`、`operator` | 写操作权限更严格 |
-| `action_execute` | Objects & Links | `admin`、`operator` | Action 执行需要操作权限 |
-| `ontology_read` | Ontology Resources | `admin`、`operator`、`viewer` | 所有登录用户可查看 |
-| `ontology_write` | Ontology Resources | `admin` | 仅管理员可修改定义 |
-| 基础原子类（`http_call`、`db_query`） | - | 仅 `admin` | 危险操作，仅管理员可调用 |
+| 类型 | 名称 | 资源层级 | 可用角色 | 说明 |
+|------|------|---------|---------|------|
+| Tool | `entity_search`、`link_search` | Objects & Links | `admin`、`operator`、`viewer` | 查询类，权限宽松 |
+| Tool | `entity_write`、`link_write` | Objects & Links | `admin`、`operator` | 写操作权限更严格 |
+| Action Type | `action_execute` | Objects & Links | `admin`、`operator` | Action 执行需要操作权限 |
+| Tool | `ontology_read` | Ontology Resources | `admin`、`operator`、`viewer` | 所有登录用户可查看 |
+| Tool | `ontology_write` | Ontology Resources | `admin` | 仅管理员可修改定义 |
+| Tool | 基础原子类（`http_call`、`db_query`） | - | 仅 `admin` | 危险操作，仅管理员可调用 |
+| Function | `order_summary` | Objects & Links | `admin`、`operator`、`viewer` | 查询类，权限宽松 |
+| Skill | `place_order` | Objects & Links | `admin`、`operator` | 流程执行需要操作权限 |
 
 ### UI 组件权限
 
