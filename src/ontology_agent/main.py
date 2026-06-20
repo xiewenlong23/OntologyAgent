@@ -1,17 +1,30 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from contextlib import asynccontextmanager
 from ontology_agent.config import get_settings
-from ontology_agent.api.chat import router as chat_router
+from ontology_agent.api.chat import router as chat_router, llm_client
 from ontology_agent.api.ontology import router as ontology_router
+from ontology_agent.db.session import dispose_engine
 from ontology_agent.tools import register_all_tools
 from pathlib import Path
 
 settings = get_settings()
 
-def create_app() -> FastAPI:
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     register_all_tools()
-    app = FastAPI(title="OntologyAgent", version="0.1.0")
+    try:
+        yield
+    finally:
+        if llm_client is not None:
+            await llm_client.aclose()
+        await dispose_engine()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="OntologyAgent", version="0.1.0", lifespan=lifespan)
     app.include_router(chat_router)
     app.include_router(ontology_router)
 
