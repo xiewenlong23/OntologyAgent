@@ -90,9 +90,12 @@ class TestOntologyEndpoints:
             mock_instance.create_ontology.return_value = mock_ontology
             MockStorage.return_value = mock_instance
 
-            response = await client.post("/api/v1/ontology/ontologies?tenant_id=test&name=test-ontology")
+            response = await client.post(
+                "/api/v1/ontology/ontologies",
+                json={"tenant_id": "test", "name": "test-ontology"},
+            )
 
-            assert response.status_code == 200
+            assert response.status_code == 201
             data = response.json()
             assert data["id"] == "test-ontology-id"
             assert data["name"] == "test-ontology"
@@ -120,7 +123,7 @@ class TestOntologyEndpoints:
             assert data["object_types"] == {'type1': {'name': 'Type1'}}
 
     @pytest.mark.asyncio
-    async def test_get_ontology_returns_not_found_for_missing(self, client):
+    async def test_get_ontology_returns_404_for_missing(self, client):
         with patch('ontology_agent.api.ontology.OntologyStorage') as MockStorage:
             mock_instance = AsyncMock()
             mock_instance.get_ontology.return_value = None
@@ -128,9 +131,8 @@ class TestOntologyEndpoints:
 
             response = await client.get("/api/v1/ontology/ontologies/nonexistent-id?tenant_id=test")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["error"] == "Not found"
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Ontology not found"
 
     @pytest.mark.asyncio
     async def test_search_objects_returns_object_list(self, client):
@@ -142,7 +144,10 @@ class TestOntologyEndpoints:
             mock_instance.search_objects.return_value = [mock_object1, mock_object2]
             MockStorage.return_value = mock_instance
 
-            response = await client.post("/api/v1/ontology/objects/search?tenant_id=test&ontology_id=test")
+            response = await client.post(
+                "/api/v1/ontology/objects/search",
+                json={"tenant_id": "test", "ontology_id": "ont-id"},
+            )
 
             assert response.status_code == 200
             data = response.json()
