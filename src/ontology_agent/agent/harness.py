@@ -1,7 +1,15 @@
+import json
+import re
 from typing import Any
 from ontology_agent.agent.messages import AgentMessage
 from ontology_agent.agent.prompts import PLANNER_PROMPT, TOOL_AGENT_PROMPT, REASONER_PROMPT, REPORTER_PROMPT
 from ontology_agent.tools.registry import ToolRegistry
+
+_THINK_RE = re.compile(r"<think>[\s\S]*?</think>\s*", re.DOTALL)
+
+
+def _strip_think_tags(text: str) -> str:
+    return _THINK_RE.sub("", text).strip()
 
 
 class AgentHarness:
@@ -47,13 +55,67 @@ class AgentHarness:
     async def _handle_planner(self, message: AgentMessage, llm_complete_fn) -> AgentMessage:
         # Extract user message - frontend sends "message", REST API sends "task"
         user_input = message.content.get("task") or message.content.get("message", "")
+        if not user_input.strip():
+            raise ValueError("planner received empty input")
+
         response = await llm_complete_fn(
             system_prompt=PLANNER_PROMPT,
             messages=[{"role": "user", "content": user_input}],
         )
-        # Strip thinking tags from LLM response
-        import re
-        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+        response = _strip_think_tags(response)
+
+        plan = self._parse_plan(response)
+        step_results: list[dict] = []
+        for step in plan.get("steps", []):
+            tool_msg = AgentMessage(
+                msg_id=f"{message.msg_id}_step_{step.get('step_id', len(step_results))}",
+                from_agent="planner",
+                to_agent="tool",
+                msg_type="task",
+                content={
+                    "action": step.get("action"),
+                    "params": step.get("params", {}),
+                    "context": message.content,
+                },
+                reply_to=message.msg_id,
+            )
+            tool_result = await self._handle_tool(tool_msg, llm_complete_fn)
+            step_results.append({
+                "step_id": step.get("step_id"),
+                "action": step.get("action"),
+                "result": tool_result.content.get("result"),
+            })
+
+        if step_results:
+            reasoner_msg = AgentMessage(
+                msg_id=f"{message.msg_id}_reason",
+                from_agent="planner",
+                to_agent="reasoner",
+                msg_type="task",
+                content={"steps": step_results, "context": message.content},
+                reply_to=message.msg_id,
+            )
+            reasoner_result = await self._handle_reasoner(reasoner_msg, llm_complete_fn)
+            analysis = reasoner_result.content.get("analysis")
+
+            reporter_msg = AgentMessage(
+                msg_id=f"{message.msg_id}_report",
+                from_agent="reasoner",
+                to_agent="reporter",
+                msg_type="task",
+                content={"analysis": analysis, "context": message.content},
+                reply_to=message.msg_id,
+            )
+            reporter_result = await self._handle_reporter(reporter_msg, llm_complete_fn)
+            return AgentMessage(
+                msg_id=f"{message.msg_id}_done",
+                from_agent="reporter",
+                to_agent=message.from_agent,
+                msg_type="result",
+                content={"plan": response, "steps": step_results, "report": reporter_result.content.get("report")},
+                reply_to=message.msg_id,
+            )
+
         return AgentMessage(
             msg_id=f"{message.msg_id}_plan",
             from_agent="planner",
@@ -62,6 +124,26 @@ class AgentHarness:
             content={"plan": response},
             reply_to=message.msg_id,
         )
+
+    @staticmethod
+    def _parse_plan(raw: str) -> dict:
+        """Extract the first JSON object from the planner's response.
+
+        Tolerant of leading prose, code fences, and trailing characters.
+        Returns {"steps": []} on failure.
+        """
+        text = raw.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```\s*$", "", text)
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return {"steps": []}
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            return {"steps": []}
 
     async def _handle_tool(self, message: AgentMessage, llm_complete_fn) -> AgentMessage:
         action = message.content.get("action")

@@ -22,11 +22,10 @@ def reset_singleton():
 class DummyTool(Tool):
     """A dummy tool for testing."""
 
-    def __init__(self, name="dummy", is_admin_only=False):
+    def __init__(self, name="dummy"):
         self.name = name
         self.description = "A dummy tool for testing"
         self.params_schema = {"type": "object", "properties": {}}
-        self.is_admin_only = is_admin_only
 
     async def execute(self, params: dict, context: dict) -> ToolResult:
         return ToolResult(success=True, data={"result": "ok"}, execution_time_ms=10)
@@ -191,14 +190,91 @@ class TestAgentHarness:
             content={"task": "do something"},
         )
 
+        # No steps in the plan -> falls back to plain {plan: ...} envelope
         async def mock_llm(system_prompt, messages):
-            return '{"steps": [{"step_id": 1, "action": "test", "params": {}}]}'
+            return '{"steps": []}'
 
         result = await harness.process_message(message, mock_llm)
 
         assert result.msg_type == "result"
         assert result.from_agent == "planner"
         assert "plan" in result.content
+
+    @pytest.mark.asyncio
+    async def test_handle_planner_with_steps_runs_full_pipeline(self):
+        harness = AgentHarness()
+        registry = ToolRegistry.get_instance()
+        registry.register(DummyTool(name="step_tool"))
+
+        message = AgentMessage(
+            msg_id="msg1",
+            from_agent="user",
+            to_agent="planner",
+            msg_type="task",
+            content={"task": "do something"},
+        )
+
+        call_count = {"n": 0}
+
+        async def mock_llm(system_prompt, messages):
+            call_count["n"] += 1
+            if "tool-calling" in system_prompt.lower() or "tool calling" in system_prompt.lower():
+                # Tool agent path (unused in this flow) — fall through
+                return ""
+            if "reasoning and analysis" in system_prompt.lower():
+                return "analysis result"
+            if "report generation" in system_prompt.lower():
+                return "final report"
+            return '{"steps": [{"step_id": 1, "action": "step_tool", "params": {}}]}'
+
+        result = await harness.process_message(message, mock_llm)
+
+        assert result.msg_type == "result"
+        assert result.from_agent == "reporter"
+        assert result.content["plan"] == '{"steps": [{"step_id": 1, "action": "step_tool", "params": {}}]}'
+        assert result.content["report"] == "final report"
+        assert len(result.content["steps"]) == 1
+        assert result.content["steps"][0]["action"] == "step_tool"
+        assert result.content["steps"][0]["result"]["success"] is True
+        # 3 LLM calls: planner, reasoner, reporter
+        assert call_count["n"] == 3
+
+    @pytest.mark.asyncio
+    async def test_handle_planner_strips_thinking_tags(self):
+        harness = AgentHarness()
+        message = AgentMessage(
+            msg_id="msg1",
+            from_agent="user",
+            to_agent="planner",
+            msg_type="task",
+            content={"task": "do something"},
+        )
+
+        async def mock_llm(system_prompt, messages):
+            return "<think>reasoning here</think>\n{\"steps\": []}"
+
+        result = await harness.process_message(message, mock_llm)
+
+        assert result.msg_type == "result"
+        assert "think" not in result.content["plan"].lower()
+        assert "reasoning here" not in result.content["plan"]
+
+    @pytest.mark.asyncio
+    async def test_handle_planner_rejects_empty_input(self):
+        harness = AgentHarness()
+        message = AgentMessage(
+            msg_id="msg1",
+            from_agent="user",
+            to_agent="planner",
+            msg_type="task",
+            content={"task": "   "},
+        )
+
+        async def mock_llm(system_prompt, messages):
+            return '{"steps": []}'
+
+        with pytest.raises(ValueError, match="empty input"):
+            await harness.process_message(message, mock_llm)
 
     @pytest.mark.asyncio
     async def test_handle_reasoner_calls_llm(self):
