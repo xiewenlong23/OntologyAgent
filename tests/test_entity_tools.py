@@ -96,6 +96,63 @@ async def test_entity_search_tool_filters_by_object_type(created_ontology, creat
 
 
 @pytest.mark.asyncio
+async def test_entity_search_tool_filters_by_property(created_ontology, created_object):
+    tool = EntitySearchTool()
+    context = {"tenant_id": "test-tenant"}
+
+    result = await tool.execute(
+        {"ontology_id": created_ontology, "filters": {"color": "red"}},
+        context,
+    )
+    assert result.success is True
+    assert result.data["count"] == 1
+
+    result = await tool.execute(
+        {"ontology_id": created_ontology, "filters": {"color": "blue"}},
+        context,
+    )
+    assert result.success is True
+    assert result.data["count"] == 0
+
+    result = await tool.execute(
+        {"ontology_id": created_ontology, "filters": {"nonexistent_key": "x"}},
+        context,
+    )
+    assert result.success is True
+    assert result.data["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_entity_search_tool_isolates_tenants(db_session, created_ontology):
+    other_tenant_storage = InstanceStorage(db_session)
+    await other_tenant_storage.create_object(
+        tenant_id="other-tenant",
+        ontology_id=created_ontology,
+        obj=ObjectCreate(
+            object_type="product",
+            api_name="Other",
+            display_name="Other Product",
+            properties={},
+        ),
+    )
+
+    tool = EntitySearchTool()
+    result = await tool.execute(
+        {"ontology_id": created_ontology},
+        {"tenant_id": "test-tenant"},
+    )
+    assert result.success is True
+    assert result.data["count"] == 0
+
+    result = await tool.execute(
+        {"ontology_id": created_ontology},
+        {"tenant_id": "other-tenant"},
+    )
+    assert result.success is True
+    assert result.data["count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_entity_search_tool_respects_limit(created_ontology):
     tool = EntitySearchTool()
     params = {

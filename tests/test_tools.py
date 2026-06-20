@@ -14,11 +14,10 @@ def reset_singleton():
 class DummyTool(Tool):
     """A concrete implementation of Tool for testing."""
 
-    def __init__(self, name="dummy", is_admin_only=False):
+    def __init__(self, name="dummy"):
         self.name = name
         self.description = "A dummy tool for testing"
         self.params_schema = {"type": "object", "properties": {}}
-        self.is_admin_only = is_admin_only
         self.call_count = 0
 
     async def execute(self, params: dict, context: dict) -> ToolResult:

@@ -95,6 +95,39 @@ async def test_ontology_write_tool_adds_object_type(created_ontology):
 
 
 @pytest.mark.asyncio
+async def test_ontology_write_tool_object_type_addition_merges_with_existing(created_ontology):
+    tool = OntologyWriteTool()
+    context = {"tenant_id": "test-tenant"}
+
+    r1 = await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_object_type",
+            "data": {"id": "person", "api_name": "Person", "display_name": "Person"},
+        },
+        context,
+    )
+    assert r1.success is True
+
+    r2 = await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_object_type",
+            "data": {"id": "company", "api_name": "Company", "display_name": "Company"},
+        },
+        context,
+    )
+    assert r2.success is True
+
+    read_tool = OntologyReadTool()
+    result = await read_tool.execute(
+        {"ontology_id": created_ontology}, context
+    )
+    assert result.success is True
+    assert set(result.data["object_types"].keys()) == {"person", "company"}
+
+
+@pytest.mark.asyncio
 async def test_ontology_write_tool_adds_property(created_ontology):
     tool = OntologyWriteTool()
     params = {
@@ -114,6 +147,69 @@ async def test_ontology_write_tool_adds_property(created_ontology):
 
     assert result.success is True
     assert result.data["updated"] is True
+
+
+@pytest.mark.asyncio
+async def test_ontology_write_tool_property_addition_merges_with_existing(created_ontology):
+    tool = OntologyWriteTool()
+    context = {"tenant_id": "test-tenant"}
+
+    r1 = await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_property",
+            "data": {"id": "name", "api_name": "name", "display_name": "Name", "type": "string"},
+        },
+        context,
+    )
+    assert r1.success is True
+
+    r2 = await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_property",
+            "data": {"id": "age", "api_name": "age", "display_name": "Age", "type": "int"},
+        },
+        context,
+    )
+    assert r2.success is True
+
+    read_tool = OntologyReadTool()
+    result = await read_tool.execute(
+        {"ontology_id": created_ontology}, context
+    )
+    assert result.success is True
+    assert set(result.data["properties"].keys()) == {"name", "age"}
+
+
+@pytest.mark.asyncio
+async def test_ontology_write_tool_property_addition_overwrites_same_id(created_ontology):
+    """Adding a property with an existing id should overwrite (last-write-wins)."""
+    tool = OntologyWriteTool()
+    context = {"tenant_id": "test-tenant"}
+
+    await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_property",
+            "data": {"id": "name", "api_name": "name", "display_name": "Name", "type": "string"},
+        },
+        context,
+    )
+    await tool.execute(
+        {
+            "ontology_id": created_ontology,
+            "action": "add_property",
+            "data": {"id": "name", "api_name": "name", "display_name": "Full Name", "type": "string"},
+        },
+        context,
+    )
+
+    read_tool = OntologyReadTool()
+    result = await read_tool.execute(
+        {"ontology_id": created_ontology}, context
+    )
+    assert result.data["properties"]["name"]["display_name"] == "Full Name"
 
 
 @pytest.mark.asyncio

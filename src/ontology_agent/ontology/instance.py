@@ -1,7 +1,7 @@
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from ontology_agent.db.models import Object, ObjectLink
-from ontology_agent.ontology.types import ObjectCreate, ObjectResponse
+from ontology_agent.db.models import Object
+from ontology_agent.ontology.types import ObjectCreate
 
 
 class InstanceStorage:
@@ -36,6 +36,10 @@ class InstanceStorage:
         )
         if object_type:
             query = query.where(Object.object_type == object_type)
+        if filters:
+            for key, value in filters.items():
+                # Match both scalar and nested values via JSONB text extraction.
+                query = query.where(Object.properties[key].astext == str(value))
         query = query.limit(limit)
         result = await self.session.execute(query)
         return list(result.scalars().all())

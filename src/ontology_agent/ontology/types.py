@@ -22,17 +22,6 @@ class PropertyDefinition(BaseModel):
     status: str = "active"
 
 
-class LinkTypeDefinition(BaseModel):
-    id: str
-    api_name: str
-    display_name: str
-    source_object_type: str
-    target_object_type: str
-    cardinality: str  # one-to-one, one-to-many, many-to-many
-    description: Optional[str] = None
-    status: str = "active"
-
-
 class ObjectCreate(BaseModel):
     object_type: str
     api_name: str

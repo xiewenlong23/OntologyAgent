@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ontology_agent.db.models import Ontology
-from ontology_agent.ontology.types import ObjectTypeDefinition, PropertyDefinition, LinkTypeDefinition
+from ontology_agent.ontology.types import ObjectTypeDefinition, PropertyDefinition
 
 
 class OntologyStorage:
@@ -42,7 +42,10 @@ class OntologyStorage:
         ontology = await self.get_ontology(ontology_id, tenant_id)
         if not ontology:
             return None
-        ontology.object_types = {ot.id: ot.model_dump() for ot in object_types}
+        merged = dict(ontology.object_types or {})
+        for ot in object_types:
+            merged[ot.id] = ot.model_dump()
+        ontology.object_types = merged
         await self.session.commit()
         await self.session.refresh(ontology)
         return ontology
@@ -53,7 +56,10 @@ class OntologyStorage:
         ontology = await self.get_ontology(ontology_id, tenant_id)
         if not ontology:
             return None
-        ontology.properties = {p.id: p.model_dump() for p in properties}
+        merged = dict(ontology.properties or {})
+        for p in properties:
+            merged[p.id] = p.model_dump()
+        ontology.properties = merged
         await self.session.commit()
         await self.session.refresh(ontology)
         return ontology

@@ -15,7 +15,6 @@ class Tool(ABC):
     name: str
     description: str
     params_schema: dict
-    is_admin_only: bool = False
 
     @abstractmethod
     async def execute(self, params: dict, context: dict) -> ToolResult:
