@@ -12,6 +12,7 @@
         .message { margin: 10px 0; }
         .user { color: blue; }
         .agent { color: green; }
+        .system { color: #888; font-size: 0.85em; font-style: italic; }
     </style>
 </head>
 <body>
@@ -21,23 +22,17 @@
     <button id="send" onclick="send()">发送</button>
 
     <script>
-        const ws = new WebSocket(`ws://localhost:8000/api/v1/ws/${Date.now()}`);
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            let text = data.content?.report || data.content?.plan || data.content?.error || JSON.stringify(data.content);
-            addMessage('agent', text);
-        };
-        ws.onerror = () => addMessage('system', 'WebSocket error');
-        ws.onclose = () => addMessage('system', 'Disconnected');
+        const IDLE_TIMEOUT_MS = 60000;
+        const INITIAL_BACKOFF_MS = 1000;
+        const MAX_BACKOFF_MS = 15000;
 
-        function send() {
-            const input = document.getElementById('input');
-            const text = input.value;
-            if (!text) return;
-            addMessage('user', text);
-            ws.send(JSON.stringify({ message: text }));
-            input.value = '';
-        }
+        const wsHost = window.location.host || 'localhost:8000';
+        const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let ws = null;
+        let backoff = INITIAL_BACKOFF_MS;
+        let lastMessageAt = 0;
+        let reconnectTimer = null;
 
         function addMessage(role, text) {
             const chat = document.getElementById('chat');
@@ -47,6 +42,59 @@
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
+
+        function resetIdleTimer() {
+            lastMessageAt = Date.now();
+        }
+
+        function connect() {
+            ws = new WebSocket(`${wsScheme}://${wsHost}/api/v1/ws/${sessionId}`);
+
+            ws.onopen = () => {
+                backoff = INITIAL_BACKOFF_MS;
+                resetIdleTimer();
+                addMessage('system', '已连接');
+            };
+
+            ws.onmessage = (event) => {
+                resetIdleTimer();
+                const data = JSON.parse(event.data);
+                let text = data.content?.report || data.content?.plan || data.content?.error || JSON.stringify(data.content);
+                addMessage('agent', text);
+            };
+
+            ws.onerror = () => {
+                addMessage('system', '连接出错,正在重试...');
+            };
+
+            ws.onclose = () => {
+                addMessage('system', `已断开,${Math.round(backoff / 1000)}s 后重连`);
+                reconnectTimer = setTimeout(connect, backoff);
+                backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+            };
+        }
+
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMessageAt > IDLE_TIMEOUT_MS) {
+                addMessage('system', '连接空闲,主动重连');
+                ws.close();
+            }
+        }, 5000);
+
+        function send() {
+            const input = document.getElementById('input');
+            const text = input.value.trim();
+            if (!text) return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('system', '未连接,无法发送');
+                return;
+            }
+            addMessage('user', text);
+            ws.send(JSON.stringify({ message: text }));
+            input.value = '';
+        }
+
+        connect();
     </script>
 </body>
 </html>
